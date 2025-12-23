@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI Sketch – Get your license</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        padding: 40px;
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        margin-bottom: 1rem;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      input[type="email"] {
+        padding: 0.6rem 0.8rem;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+      }
+      button {
+        padding: 0.6rem 0.8rem;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        background: #111827;
+        color: white;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      #message {
+        min-height: 1.2em;
+        font-size: 0.95rem;
+      }
+      #message.error {
+        color: #b91c1c;
+      }
+      #message.success {
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Get your AI Sketch license</h1>
+    <p>Enter your email and we’ll send you a license key automatically.</p>
+
+    <form id="license-form">
+      <input
+        id="email"
+        name="email"
+        type="email"
+        placeholder="you@example.com"
+        required
+      />
+      <button type="submit">Send me a license</button>
+      <div id="message"></div>
+    </form>
+
+    <script>
+      const FUNCTION_URL =
+        "https://fhuaafpxjnbzodxvwkhc.supabase.co/functions/v1/request-license"; 
+
+      const form = document.getElementById("license-form");
+      const emailInput = document.getElementById("email");
+      const messageEl = document.getElementById("message");
+      const button = form.querySelector("button");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        messageEl.textContent = "";
+        messageEl.className = "";
+        const email = emailInput.value.trim();
+
+        if (!email) return;
+
+        button.disabled = true;
+        button.textContent = "Sending...";
+        messageEl.textContent = "";
+
+        try {
+          const res = await fetch(FUNCTION_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || !data.success) {
+            console.error("Error response:", res.status, data);
+            messageEl.textContent =
+              data.error || "Something went wrong. Please try again.";
+            messageEl.className = "error";
+          } else {
+            messageEl.textContent =
+              "Check your inbox – your license key has been emailed.";
+            messageEl.className = "success";
+            form.reset();
+          }
+        } catch (err) {
+          console.error(err);
+          messageEl.textContent =
+            "Network error. Please try again in a moment.";
+          messageEl.className = "error";
+        } finally {
+          button.disabled = false;
+          button.textContent = "Send me a license";
+        }
+      });
+    </script>
+  </body>
+</html>
