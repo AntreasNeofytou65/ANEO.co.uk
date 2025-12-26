@@ -66,6 +66,7 @@
         type="email"
         placeholder="you@example.com"
         required
+        autocomplete="email"
       />
       <button type="submit">Send me a license</button>
       <div id="message"></div>
@@ -73,7 +74,9 @@
 
     <script>
       const FUNCTION_URL =
-        "https://fhuaafpxjnbzodxvwkhc.supabase.co/functions/v1/request-license"; 
+        "https://fhuaafpxjnbzodxvwkhc.supabase.co/functions/v1/request-license";
+
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_PizhGNGx7s9ZquG9gcZLLw_sWwiN_mo";
 
       const form = document.getElementById("license-form");
       const emailInput = document.getElementById("email");
@@ -84,33 +87,44 @@
         e.preventDefault();
         messageEl.textContent = "";
         messageEl.className = "";
-        const email = emailInput.value.trim();
 
+        const email = emailInput.value.trim();
         if (!email) return;
 
         button.disabled = true;
         button.textContent = "Sending...";
-        messageEl.textContent = "";
 
         try {
           const res = await fetch(FUNCTION_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              apikey: SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+            },
             body: JSON.stringify({ email }),
           });
 
           const data = await res.json().catch(() => ({}));
 
-          if (!res.ok || !data.success) {
+          if (!res.ok) {
             console.error("Error response:", res.status, data);
             messageEl.textContent =
-              data.error || "Something went wrong. Please try again.";
+              "Something went wrong. Please try again.";
             messageEl.className = "error";
-          } else {
+            return;
+          }
+
+          if (data.success) {
             messageEl.textContent =
-              "Check your inbox – your license key has been emailed.";
+              "If that email is valid, you’ll receive a license key shortly.";
             messageEl.className = "success";
             form.reset();
+          } else {
+            console.error("App error:", data);
+            messageEl.textContent =
+              "If that email is valid, you’ll receive a license key shortly.";
+            messageEl.className = "success";
           }
         } catch (err) {
           console.error(err);
