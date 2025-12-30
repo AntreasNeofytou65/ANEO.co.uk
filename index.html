@@ -2,140 +2,304 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>AI Sketch – Get your license</title>
+    <title>AI Sketch – Get your licence</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         padding: 40px;
-        max-width: 480px;
+        max-width: 520px;
         margin: 0 auto;
       }
-      h1 {
-        font-size: 1.6rem;
-        margin-bottom: 0.5rem;
+      h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+      p { margin-bottom: 1rem; color: #111827; }
+      .muted { color: #6b7280; font-size: 0.95rem; }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 16px;
       }
-      p {
-        margin-bottom: 1rem;
-      }
-      form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-      }
-      input[type="email"] {
+      form { display: flex; flex-direction: column; gap: 0.75rem; }
+      input[type="email"], input[type="text"] {
         padding: 0.6rem 0.8rem;
         font-size: 1rem;
-        border-radius: 6px;
-        border: 1px solid #ccc;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
       }
       button {
         padding: 0.6rem 0.8rem;
         font-size: 1rem;
-        border-radius: 6px;
+        border-radius: 8px;
         border: none;
         cursor: pointer;
         background: #111827;
         color: white;
       }
-      button:disabled {
-        opacity: 0.6;
-        cursor: default;
+      button:disabled { opacity: 0.6; cursor: default; }
+      #message { min-height: 1.2em; font-size: 0.95rem; }
+      #message.error { color: #b91c1c; }
+      #message.success { color: #166534; }
+      #licenceBox {
+        display: none;
+        margin-top: 12px;
+        padding: 14px 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f9fafb;
       }
-      #message {
-        min-height: 1.2em;
-        font-size: 0.95rem;
+      #licenceKey {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
       }
-      #message.error {
-        color: #b91c1c;
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row > * { flex: 1; }
+      .secondary {
+        background: white;
+        color: #111827;
+        border: 1px solid #d1d5db;
       }
-      #message.success {
-        color: #166534;
-      }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
-    <h1>Get your AI Sketch license</h1>
-    <p>Enter your email and we’ll send you a license key automatically.</p>
+    <h1>Get your AI Sketch licence</h1>
+    <p>Enter your email. We’ll send a confirmation code, then you’ll see your licence here.</p>
+    <p class="muted">This helps Gmail accept the message and prevents accidental delivery to the wrong person.</p>
 
-    <form id="license-form">
-      <input
-        id="email"
-        name="email"
-        type="email"
-        placeholder="you@example.com"
-        required
-        autocomplete="email"
-      />
-      <button type="submit">Send me a license</button>
-      <div id="message"></div>
-    </form>
+    <div class="card">
+      <form id="start-form">
+        <input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required
+          autocomplete="email"
+        />
+        <button id="startBtn" type="submit">Send confirmation</button>
+        <div id="message"></div>
+      </form>
+    </div>
+
+    <div id="verifyCard" class="card hidden">
+      <h2 style="font-size: 1.1rem; margin: 0 0 8px;">Confirm your request</h2>
+      <p class="muted" style="margin-top: 0;">
+        Check your inbox for a 6-digit code, or click the confirmation link in the email.
+      </p>
+
+      <form id="verify-form">
+        <div class="row">
+          <input
+            id="code"
+            name="code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="6-digit code"
+            minlength="6"
+            maxlength="6"
+          />
+          <button id="verifyBtn" type="submit">Confirm</button>
+        </div>
+        <div class="row">
+          <button id="resendBtn" type="button" class="secondary">Resend code</button>
+          <button id="changeEmailBtn" type="button" class="secondary">Change email</button>
+        </div>
+      </form>
+
+      <div id="licenceBox">
+        <div class="muted">Your licence key</div>
+        <div id="licenceKey"></div>
+        <div class="muted" style="margin-top: 10px;">
+          Use this email + key inside the AI Sketch add-in when prompted.
+        </div>
+      </div>
+    </div>
 
     <script>
       const FUNCTION_URL =
         "https://fhuaafpxjnbzodxvwkhc.supabase.co/functions/v1/request-license";
 
+      // Safe to expose (publishable key). Never expose service role.
       const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_PizhGNGx7s9ZquG9gcZLLw_sWwiN_mo";
 
-      const form = document.getElementById("license-form");
+      const startForm = document.getElementById("start-form");
+      const verifyForm = document.getElementById("verify-form");
+
       const emailInput = document.getElementById("email");
+      const codeInput = document.getElementById("code");
+
       const messageEl = document.getElementById("message");
-      const button = form.querySelector("button");
+      const startBtn = document.getElementById("startBtn");
+      const verifyBtn = document.getElementById("verifyBtn");
 
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        messageEl.textContent = "";
-        messageEl.className = "";
+      const verifyCard = document.getElementById("verifyCard");
+      const licenceBox = document.getElementById("licenceBox");
+      const licenceKeyEl = document.getElementById("licenceKey");
 
-        const email = emailInput.value.trim();
-        if (!email) return;
+      const resendBtn = document.getElementById("resendBtn");
+      const changeEmailBtn = document.getElementById("changeEmailBtn");
 
-        button.disabled = true;
-        button.textContent = "Sending...";
+      function setMessage(text, kind) {
+        messageEl.textContent = text || "";
+        messageEl.className = kind ? kind : "";
+      }
+
+      function getTokenFromUrl() {
+        const url = new URL(window.location.href);
+        return url.searchParams.get("token");
+      }
+
+      function clearTokenFromUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("token");
+        window.history.replaceState({}, "", url.toString());
+      }
+
+      async function callEdge(payload) {
+        const res = await fetch(FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+      }
+
+      function showVerifyStep() {
+        verifyCard.classList.remove("hidden");
+        licenceBox.style.display = "none";
+        licenceKeyEl.textContent = "";
+      }
+
+      function showLicence(key) {
+        licenceKeyEl.textContent = key;
+        licenceBox.style.display = "block";
+      }
+
+      async function start(email) {
+        startBtn.disabled = true;
+        startBtn.textContent = "Sending...";
+        setMessage("", "");
 
         try {
-          const res = await fetch(FUNCTION_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ email }),
-          });
+          const { ok, status, data } = await callEdge({ action: "start", email });
 
-          const data = await res.json().catch(() => ({}));
+          // Always show a generic success message to prevent probing.
+          if (!ok) console.error("Start error:", status, data);
 
-          if (!res.ok) {
-            console.error("Error response:", res.status, data);
-            messageEl.textContent =
-              "Something went wrong. Please try again.";
-            messageEl.className = "error";
+          setMessage(
+            "If that email is valid, you’ll receive a confirmation message shortly.",
+            "success"
+          );
+          showVerifyStep();
+        } catch (e) {
+          console.error(e);
+          setMessage("Network error. Please try again.", "error");
+        } finally {
+          startBtn.disabled = false;
+          startBtn.textContent = "Send confirmation";
+        }
+      }
+
+      async function verify({ email, code, token }) {
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = "Confirming...";
+
+        try {
+          const payload = { action: "verify" };
+          if (email) payload.email = email;
+          if (code) payload.code = code;
+          if (token) payload.token = token;
+
+          const { ok, status, data } = await callEdge(payload);
+
+          if (!ok) {
+            console.error("Verify error:", status, data);
+            setMessage("That confirmation didn’t work. Please request a new code.", "error");
             return;
           }
 
-          if (data.success) {
-            messageEl.textContent =
-              "If that email is valid, you’ll receive a license key shortly.";
-            messageEl.className = "success";
-            form.reset();
-          } else {
-            console.error("App error:", data);
-            messageEl.textContent =
-              "If that email is valid, you’ll receive a license key shortly.";
-            messageEl.className = "success";
+          if (data && data.success && data.licenseKey) {
+            setMessage("Confirmed. Your licence is shown below.", "success");
+            showLicence(data.licenseKey);
+            clearTokenFromUrl();
+            return;
           }
-        } catch (err) {
-          console.error(err);
-          messageEl.textContent =
-            "Network error. Please try again in a moment.";
-          messageEl.className = "error";
+
+          setMessage("That confirmation didn’t work. Please request a new code.", "error");
+        } catch (e) {
+          console.error(e);
+          setMessage("Network error. Please try again.", "error");
         } finally {
-          button.disabled = false;
-          button.textContent = "Send me a license";
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = "Confirm";
         }
+      }
+
+      // Start form submit
+      startForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim().toLowerCase();
+        if (!email) return;
+
+        // Store in session so we can verify with code.
+        sessionStorage.setItem("license_email", email);
+        await start(email);
       });
+
+      // Verify form submit (code)
+      verifyForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = (sessionStorage.getItem("license_email") || "").trim();
+        const code = (codeInput.value || "").trim().replace(/\s+/g, "");
+        if (!email || code.length !== 6) {
+          setMessage("Enter the 6-digit code from the email.", "error");
+          return;
+        }
+        await verify({ email, code });
+      });
+
+      // Resend
+      resendBtn.addEventListener("click", async () => {
+        const email = (sessionStorage.getItem("license_email") || "").trim();
+        if (!email) {
+          setMessage("Enter your email first.", "error");
+          return;
+        }
+        await start(email);
+      });
+
+      // Change email
+      changeEmailBtn.addEventListener("click", () => {
+        sessionStorage.removeItem("license_email");
+        verifyCard.classList.add("hidden");
+        licenceBox.style.display = "none";
+        licenceKeyEl.textContent = "";
+        codeInput.value = "";
+        setMessage("", "");
+        emailInput.focus();
+      });
+
+      // If user clicked the email link: auto-verify by token
+      (async function autoVerifyFromToken() {
+        const token = getTokenFromUrl();
+        if (!token) return;
+
+        showVerifyStep();
+        setMessage("Confirming your request…", "success");
+
+        // If we have the email stored, include it. Otherwise token-only is fine.
+        const email = (sessionStorage.getItem("license_email") || "").trim();
+        await verify({ email: email || undefined, token });
+      })();
     </script>
   </body>
 </html>
